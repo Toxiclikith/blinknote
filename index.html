@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlinkNote</title>
+  <style>
+body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f4f8;
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+      width: 300px;
+      text-align: center;
+      position: relative;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 8px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    button {
+      background-color: #007bff;
+      color: #fff;
+      padding: 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .info-icon {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      color: #007bff;
+      cursor: pointer;
+    }
+    .tooltip {
+      display: none;
+      position: absolute;
+      top: 30px;
+      right: 10px;
+      background-color: #333;
+      color: #fff;
+      padding: 10px;
+      border-radius: 5px;
+      width: 200px;
+      text-align: left;
+      font-size: 14px;
+    }
+    .result {
+      margin-top: 15px;
+      color: #333;
+	  word-wrap: break-word;
+    }
+    .result a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    #messageOutput {
+      max-height: 80px;
+      overflow-y: auto;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      margin-top: 10px;
+      white-space: pre-wrap;
+    }
+    .copy-btn {
+      background-color: #28a745;
+      color: #fff;
+      padding: 5px 10px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .copy-btn:hover {
+      background-color: #218838;
+    }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>BlinkNote</h1>
+
+    <!-- Tooltip icon (for info about features) -->
+    <div class="info-icon" onclick="toggleTooltip()">ℹ️</div>
+
+    <!-- Tooltip content -->
+    <div class="tooltip" id="tooltip">
+      <p><strong>Features:</strong> Disposable messages with auto-expiry within 24  hours</p>
+      <p><strong>Upcoming:</strong> <br>
+	  - Custom expiration <br>
+      - File upload options <br>
+	  - Password Protection <br>
+	  - QR Code Generation <br>
+	  - Message Self-Destruction After Viewing <br>
+	  - Message Templates</p>
+    </div>
+
+    <!-- Message Input and Generate Link Button -->
+    <textarea id="messageInput" placeholder="Enter your message"></textarea>
+    <button onclick="saveMessage()">Generate Link</button>
+
+    <!-- Display Generated Link and ID -->
+    <div id="linkOutput" class="result"></div>
+
+    <!-- Input for fetching message by ID and Get Message Button -->
+    <input type="text" id="messageIdInput" placeholder="Enter message ID to retrieve">
+    <button onclick="getMessage()">Get Message</button>
+
+    <!-- Display Retrieved Message with Copy Button -->
+    <div id="messageOutput" class="result"></div>
+    <button class="copy-btn" id="copyButton" onclick="copyMessage()" style="display:none;">📋 Copy</button>
+  </div>
+
+  <script>
+    // Backend URL
+    const backendUrl = "https://blinknote-worker.toxiclikith.workers.dev";
+
+    // Function to save the message
+    async function saveMessage() {
+      const message = document.getElementById("messageInput").value;
+      if (!message) return alert("Please enter a message.");
+
+      const response = await fetch(`${backendUrl}/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message })
+      });
+      
+      const data = await response.json();
+      document.getElementById("linkOutput").innerHTML = 
+        `Your ID: <strong>${data.id}</strong><br>Your link: <a href="${window.location.origin}/message/${data.id}" target="_blank">${window.location.origin}/message/${data.id}</a>`;
+    }
+
+    // Function to retrieve a message by ID
+    async function getMessage(id = null) {
+      const messageId = id || document.getElementById("messageIdInput").value;
+      if (!messageId) return alert("Please enter a message ID.");
+
+      const response = await fetch(`${backendUrl}/message/${messageId}`);
+      if (response.ok) {
+        const data = await response.json();
+        document.getElementById("messageOutput").innerText = `Message: ${data.message}`;
+        document.getElementById("copyButton").style.display = "inline-block";
+      } else {
+        document.getElementById("messageOutput").innerText = "Message not found.";
+        document.getElementById("copyButton").style.display = "none";
+      }
+    }
+
+    // Load message directly if an ID is in the URL path
+    window.addEventListener("DOMContentLoaded", () => {
+      const path = window.location.pathname.split("/message/");
+      if (path[1]) getMessage(path[1]);
+    });
+
+    // Copy message function
+    function copyMessage() {
+      const message = document.getElementById("messageOutput").innerText;
+      navigator.clipboard.writeText(message).then(() => alert("Message copied!"));
+    }
+
+    // Tooltip toggle function with outside-click detection
+    function toggleTooltip() {
+      const tooltip = document.getElementById("tooltip");
+      tooltip.style.display = tooltip.style.display === "block" ? "none" : "block";
+
+      document.addEventListener("click", (e) => {
+        if (!tooltip.contains(e.target) && e.target !== document.querySelector('.info-icon')) {
+          tooltip.style.display = "none";
+        }
+      }, { once: true });
+    }
+  </script>
+</body>
+</html>
